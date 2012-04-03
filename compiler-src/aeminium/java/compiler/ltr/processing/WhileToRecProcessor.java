@@ -1,23 +1,27 @@
 package aeminium.java.compiler.ltr.processing;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Set;
 
 import spoon.reflect.code.CtBlock;
 import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtIf;
 import spoon.reflect.code.CtInvocation;
-import spoon.reflect.code.CtStatement;
 import spoon.reflect.code.CtWhile;
 import spoon.reflect.declaration.CtClass;
 import spoon.reflect.declaration.CtMethod;
+import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.ModifierKind;
 import spoon.reflect.factory.CodeFactory;
 import spoon.reflect.factory.ExecutableFactory;
 import spoon.reflect.factory.TypeFactory;
 import spoon.reflect.reference.CtExecutableReference;
+import spoon.reflect.reference.CtTypeReference;
 import spoon.template.Substitution;
 import spoon.template.Template;
+import aeminium.java.compiler.ltr.processing.utils.VariablesUsedVisitor;
 import aeminium.java.compiler.ltr.template.WhileToRecTemplate;
 
 public class WhileToRecProcessor extends AbstractLambdaProcessor<CtWhile>{
@@ -33,6 +37,22 @@ public class WhileToRecProcessor extends AbstractLambdaProcessor<CtWhile>{
 		
 		CtMethod<?> met = outterClass.getMethod("aeminium_rec_method");
 		
+		
+		// Which arguments to pass?
+		VariablesUsedVisitor varVis = new VariablesUsedVisitor(outterClass);
+		target.accept(varVis);
+		HashMap<String, CtTypeReference<?>> variableTypes = varVis.usages;
+		Set<String> orderedVariables = variableTypes.keySet();
+		
+		// Add arguments to method definition
+		List<CtParameter<?>> parList = new ArrayList<CtParameter<?>>();
+		for (String u: orderedVariables) {
+			ExecutableFactory ef = getFactory().Executable();
+			CtParameter<?> p = ef.createParameter(met, variableTypes.get(u), u);
+			parList.add(p);
+		}
+		met.setParameters(parList);
+		
 		// Make static work
         boolean isStatic = checkStatic(target.getParent(CtMethod.class));
         if (isStatic) isStatic = makeStatic(met);
@@ -41,29 +61,25 @@ public class WhileToRecProcessor extends AbstractLambdaProcessor<CtWhile>{
 		// Add body to if.
 		CtIf iff = (CtIf) met.getBody().getStatements().get(0);
 		CtBlock<?> body = (CtBlock<?>) target.getBody();
-		body.getStatements().add(createMethodInvocation(outterClass, isStatic));
+		body.getStatements().add(createMethodInvocation(outterClass, isStatic, met.getReference(), orderedVariables, variableTypes));
 		iff.setThenStatement(body);
-		
         
-        // TODO arguments
-        
-		CtInvocation<?> repl = createMethodInvocation(outterClass, isStatic);
+		CtInvocation<?> repl = createMethodInvocation(outterClass, isStatic, met.getReference(), orderedVariables, variableTypes);
 		target.replace(repl);
 	}
 
 	private CtInvocation<?> createMethodInvocation(CtClass<?> outterClass,
-			boolean isStatic) {
-		CodeFactory cf = getFactory().Code();
-	    TypeFactory tf = getFactory().Type();
-	    ExecutableFactory ef = getFactory().Executable();
+			boolean isStatic, CtExecutableReference<?> method, Set<String> orderedVariables, HashMap<String, CtTypeReference<?>> variableTypes) {
 		
-		CtExecutableReference<?> method = ef.createReference(
-                tf.createReference(outterClass),
-                isStatic,
-                null, // void
-                "aeminium_rec_method"); // takes types then
-        CtInvocation<?> repl =
-                cf.createInvocation(null, method, new ArrayList<CtExpression<?>>());
+		CodeFactory cf = getFactory().Code();
+		TypeFactory tf = getFactory().Type();
+		List<CtExpression<?>> arguments = new ArrayList<CtExpression<?>>();
+		for (String u: orderedVariables) {
+			CtExpression<?> p = cf.createVariableAccess(cf.createLocalVariableReference(variableTypes.get(u), u), false);
+			arguments.add(p);
+		}
+				
+        CtInvocation<?> repl = cf.createInvocation(null, method, arguments);
 		return repl;
 	}
 

@@ -8,7 +8,9 @@ public class SimpleFor {
 		
 		int k=0;
 		while(k < 10) {
+			int a = 1;
 			System.out.println(k++);
+			matrix[0][0] = a;
 		}
 		
 		

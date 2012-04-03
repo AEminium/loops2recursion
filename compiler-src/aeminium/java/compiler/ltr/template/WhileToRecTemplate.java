@@ -1,7 +1,6 @@
 package aeminium.java.compiler.ltr.template;
 
 import spoon.reflect.code.CtExpression;
-import spoon.reflect.code.CtStatement;
 import spoon.template.Local;
 import spoon.template.Parameter;
 import spoon.template.Template;

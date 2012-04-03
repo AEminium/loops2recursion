@@ -267,6 +267,7 @@ public class VariablesUsedVisitor implements CtVisitor {
 	@Override
 	public <T> void visitCtInvocation(CtInvocation<T> node) {
 		scan(node.getTarget());
+		scan(node.getExecutable());
 		for ( CtExpression<?> s: node.getArguments()) scan(s);
 	}
 
@@ -302,6 +303,7 @@ public class VariablesUsedVisitor implements CtVisitor {
 	public <T> void visitCtNewClass(CtNewClass<T> node) {
 		scan(node.getExecutable());
 		scan(node.getTarget());
+		for (CtExpression<?> s :node.getArguments()) scan(s);
 	}
 
 	@Override

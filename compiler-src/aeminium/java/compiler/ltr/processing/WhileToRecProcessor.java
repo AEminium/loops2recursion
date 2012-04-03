@@ -16,11 +16,11 @@ import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.ModifierKind;
 import spoon.reflect.factory.CodeFactory;
 import spoon.reflect.factory.ExecutableFactory;
-import spoon.reflect.factory.TypeFactory;
 import spoon.reflect.reference.CtExecutableReference;
 import spoon.reflect.reference.CtTypeReference;
 import spoon.template.Substitution;
 import spoon.template.Template;
+import aeminium.java.compiler.ltr.processing.utils.Counter;
 import aeminium.java.compiler.ltr.processing.utils.VariablesUsedVisitor;
 import aeminium.java.compiler.ltr.template.WhileToRecTemplate;
 
@@ -28,14 +28,17 @@ public class WhileToRecProcessor extends AbstractLambdaProcessor<CtWhile>{
     
 	@Override
 	public void process(CtWhile target) {
+		int id = Counter.getId();
+		
 		
 		CtClass<?> outterClass = target.getParent(CtClass.class);
 		System.out.println("While Found in " + outterClass.getSimpleName());
 		
-		Template t = new WhileToRecTemplate(target.getLoopingExpression());
+		Template t = new WhileToRecTemplate();
 		Substitution.insertAllMethods(outterClass, t);
 		
 		CtMethod<?> met = outterClass.getMethod("aeminium_rec_method");
+		met.setSimpleName( met.getSimpleName() + "_" + id );
 		
 		
 		// Which arguments to pass?
@@ -57,13 +60,15 @@ public class WhileToRecProcessor extends AbstractLambdaProcessor<CtWhile>{
         boolean isStatic = checkStatic(target.getParent(CtMethod.class));
         if (isStatic) isStatic = makeStatic(met);
 		
-		
+        // Add cond to if
+        CtIf iff = (CtIf) met.getBody().getStatements().get(0);
+		iff.setCondition(target.getLoopingExpression());
+        
 		// Add body to if.
-		CtIf iff = (CtIf) met.getBody().getStatements().get(0);
 		CtBlock<?> body = (CtBlock<?>) target.getBody();
 		body.getStatements().add(createMethodInvocation(outterClass, isStatic, met.getReference(), orderedVariables, variableTypes));
 		iff.setThenStatement(body);
-        
+		
 		CtInvocation<?> repl = createMethodInvocation(outterClass, isStatic, met.getReference(), orderedVariables, variableTypes);
 		target.replace(repl);
 	}
@@ -72,7 +77,6 @@ public class WhileToRecProcessor extends AbstractLambdaProcessor<CtWhile>{
 			boolean isStatic, CtExecutableReference<?> method, Set<String> orderedVariables, HashMap<String, CtTypeReference<?>> variableTypes) {
 		
 		CodeFactory cf = getFactory().Code();
-		TypeFactory tf = getFactory().Type();
 		List<CtExpression<?>> arguments = new ArrayList<CtExpression<?>>();
 		for (String u: orderedVariables) {
 			CtExpression<?> p = cf.createVariableAccess(cf.createLocalVariableReference(variableTypes.get(u), u), false);

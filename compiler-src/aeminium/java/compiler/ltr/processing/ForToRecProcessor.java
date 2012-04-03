@@ -84,6 +84,8 @@ public class ForToRecProcessor extends AbstractLoopToRecProcessor<CtFor>{
 		CtInvocation<?> repl = createMethodInvocation(outterClass, isStatic, met.getReference(), orderedVariables, variableTypes, variableDefaults);
 		target.replace(repl);
 		
+		met.setDocComment("Generated from the For cycle in line " + target.getPosition().getLine() + " of the original file.");
+		
 		checkConsistency(target);
 	}
 	

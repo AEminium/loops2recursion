@@ -71,6 +71,8 @@ public class WhileToRecProcessor extends AbstractLoopToRecProcessor<CtWhile>{
 		CtInvocation<?> repl = createMethodInvocation(outterClass, isStatic, met.getReference(), orderedVariables, variableTypes);
 		target.replace(repl);
 		
+		met.setDocComment("Generated from the While cycle in line " + target.getPosition().getLine() + " of the original file.");
+		
 		checkConsistency(target);
 	}
 	

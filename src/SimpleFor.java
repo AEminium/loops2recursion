@@ -14,6 +14,11 @@ public class SimpleFor {
 		}
 		
 		
+		for (int i=0;i<N;i++) {
+			System.out.println("Hello " + i);
+		}
+		
+		
 		for(int i=0; i<M; i++) {
 			for(int j=0; j<N; j++) {
 				if (i == j) {

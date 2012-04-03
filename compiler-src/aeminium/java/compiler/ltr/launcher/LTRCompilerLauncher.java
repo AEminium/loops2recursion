@@ -7,7 +7,7 @@ import java.util.List;
 import spoon.Launcher;
 import spoon.support.builder.CtResource;
 import spoon.support.builder.support.CtFolderFile;
-
+import aeminium.java.compiler.ltr.processing.ForToRecProcessor;
 import aeminium.java.compiler.ltr.processing.WhileToRecProcessor;
 
 import com.martiansoftware.jsap.JSAPException;
@@ -22,6 +22,7 @@ public class LTRCompilerLauncher extends Launcher {
 	protected List<String> getProcessorTypes() {
 		List<String> l = super.getProcessorTypes();
 		l.add(WhileToRecProcessor.class.getName());
+		l.add(ForToRecProcessor.class.getName());
 		return l;
 	}
 

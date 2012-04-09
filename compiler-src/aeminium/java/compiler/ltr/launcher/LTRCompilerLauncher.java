@@ -1,12 +1,8 @@
 package aeminium.java.compiler.ltr.launcher;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.List;
 
 import spoon.Launcher;
-import spoon.support.builder.CtResource;
-import spoon.support.builder.support.CtFolderFile;
 import aeminium.java.compiler.ltr.processing.ForToRecProcessor;
 import aeminium.java.compiler.ltr.processing.WhileToRecProcessor;
 
@@ -26,17 +22,6 @@ public class LTRCompilerLauncher extends Launcher {
 		return l;
 	}
 
-	@Override
-	protected List<CtResource> getTemplateSources() {
-		List<CtResource> l = super.getTemplateSources();
-		try {
-			l.add(new CtFolderFile(new File("compiler-src/aeminium/java/compiler/ltr/template")));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return l;
-	}
-	
 	public static void main(String[] args) {
 		try {
 			LTRCompilerLauncher launcher = new LTRCompilerLauncher(args);

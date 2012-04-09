@@ -12,8 +12,6 @@ CLASS_LIB="."
 COMPILER_SRC="$DIR/dist/loops2rec.jar"
 EXTRA_LIB=""
 
-echo "A: $@"
-
 EXTRACP="$COMPILE_LIB:$CLASS_LIB:$COMPILER_SRC:$EXTRA_LIB:$2"
 
 mkdir -p spooned

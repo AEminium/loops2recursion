@@ -102,6 +102,7 @@ public class ForToRecProcessor extends AbstractLoopToRecProcessor<CtFor> {
 		for (CtStatement st : target.getForInit()) {
 			if (st instanceof CtAssignment) {
 				stms.add(st);
+				fixInternalUsagesOfOutterVariable(st, outterClass, iff);
 			}
 		}
 
@@ -119,5 +120,126 @@ public class ForToRecProcessor extends AbstractLoopToRecProcessor<CtFor> {
 		checkConsistency(target);
 	}
 
+	private void fixInternalUsagesOfOutterVariable(CtStatement st,
+			CtClass<?> outterClass, CtStatement stm) {
+		CtExpression<?> assigned = ((CtAssignment<?, ?>) st).getAssigned();
+		if (assigned instanceof CtVariableAccess) {
+			CtVariableAccess<?> localVarAccess = (CtVariableAccess<?>) assigned;
+			final CtVariableReference<?> localVar = localVarAccess
+					.getVariable();
+			final String auxVarName = "aeminium_tmp_var_" + Counter.getId();
+
+			Template accessor = new FieldAccessTemplate<Object>(
+					assigned.getType(), auxVarName);
+			Substitution.insertAllFields(outterClass, accessor);
+			Substitution.insertAllMethods(outterClass, accessor);
+
+			// Rename methods
+			CtMethod<?> gm = outterClass.getMethod("get_Field_");
+			gm.setSimpleName("get_" + auxVarName);
+			CtMethod<?> sm = outterClass.getMethod("set_Field_",
+					assigned.getType());
+			sm.setSimpleName("set_" + auxVarName);
+
+			// Static work
+			if (isStatic) {
+				makeStatic(gm);
+				makeStatic(sm);
+				makeStatic(outterClass.getField(auxVarName));
+			}
+
+			// Replace usage of variable in assignments
+			Filter<CtAssignment<?, ?>> assignments = new AbstractFilter<CtAssignment<?, ?>>(
+					CtAssignment.class) {
+				@Override
+				public boolean matches(CtAssignment<?, ?> ass) {
+					if (ass.getAssigned() instanceof CtVariableAccess) {
+						CtVariableAccess<?> vd = (CtVariableAccess<?>) ass
+								.getAssigned();
+						if (vd.getVariable().equals(localVar)) {
+							return true;
+						}
+					}
+					return false;
+				}
+			};
+			QueryVisitor<?> qv = new QueryVisitor<CtAssignment<?, ?>>(
+					assignments);
+			qv.scan(stm);
+			for (Object t : qv.getResult()) {
+				CtAssignment<?, ?> ass = (CtAssignment<?, ?>) t;
+				CtInvocation<?> inv = getFactory().Code().createInvocation(
+						null, sm.getReference(), ass.getAssignment());
+				ass.replace(inv);
+			}
+			
+			// Setup things
+			CtExpression<?> expr;
+			if (isStatic) {
+				expr = null;
+			} else {
+				expr = getFactory().Code().createThisAccess(
+						outterClass.getReference());
+			}
+
+			// Replace usage of variable in unary expression
+			Filter<CtUnaryOperator<?>> unaries = new AbstractFilter<CtUnaryOperator<?>>(
+					CtUnaryOperator.class) {
+				@Override
+				public boolean matches(CtUnaryOperator<?> ass) {
+					if (ass.getOperand() instanceof CtVariableAccess) {
+						CtVariableAccess<?> vd = (CtVariableAccess<?>) ass
+								.getOperand();
+						if (vd.getVariable().equals(localVar)) {
+							return true;
+						}
+					}
+					return false;
+				}
+			};
+			qv = new QueryVisitor<CtUnaryOperator<?>>(unaries);
+			qv.scan(stm);
+			for (Object t : qv.getResult()) {
+				// TODO: Convert unary to binary operator.
+				/*
+				CtUnaryOperator<?> u = (CtUnaryOperator<?>) t;
+				
+				CtExpression<?> newValue = getFactory().Code().createInvocation(
+						expr, gm.getReference(),
+						new ArrayList<CtExpression<?>>());
+						 
+				CtInvocation<?> inv = getFactory().Code().createInvocation(
+						null, sm.getReference(), nop);
+				
+				u.replace(inv);
+				*/
+			}
+
+			// Replace usage of variable in access
+			Filter<CtVariableAccess<?>> accesses = new AbstractFilter<CtVariableAccess<?>>(
+					CtVariableAccess.class) {
+				@Override
+				public boolean matches(CtVariableAccess<?> acc) {
+					if (acc.getVariable().equals(localVar)) {
+						return true;
+					}
+					return false;
+				}
+			};
+			qv = new QueryVisitor<CtVariableAccess<?>>(accesses);
+			qv.scan(stm);
+			
+			for (Object t : qv.getResult()) {
+				CtVariableAccess<?> acc = (CtVariableAccess<?>) t;
+				CtInvocation<?> inv = getFactory().Code().createInvocation(
+						expr, gm.getReference(),
+						new ArrayList<CtExpression<?>>());
+				if (acc.getParent() != null) {
+					acc.replace(inv);
+				} // TODO: Else?
+			}
+		}
+
+	}
 
 }

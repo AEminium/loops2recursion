@@ -11,6 +11,7 @@ import spoon.reflect.code.CtInvocation;
 import spoon.reflect.declaration.CtClass;
 import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtMethod;
+import spoon.reflect.declaration.CtModifiable;
 import spoon.reflect.declaration.ModifierKind;
 import spoon.reflect.factory.CodeFactory;
 import spoon.reflect.reference.CtExecutableReference;
@@ -20,7 +21,7 @@ import spoon.reflect.visitor.ModelConsistencyChecker;
 public abstract class AbstractLoopToRecProcessor<T extends CtElement> extends
 		AbstractProcessor<T> {
 
-	protected boolean makeStatic(CtMethod<?> met) {
+	protected boolean makeStatic(CtModifiable met) {
 
 		boolean isStatic;
 		Set<ModifierKind> mods = met.getModifiers();
@@ -30,7 +31,7 @@ public abstract class AbstractLoopToRecProcessor<T extends CtElement> extends
 		return isStatic;
 	}
 
-	protected boolean checkStatic(CtMethod<?> outterMethod) {
+	protected boolean checkStatic(CtModifiable outterMethod) {
 		boolean isStatic = false;
 		for (ModifierKind m : outterMethod.getModifiers()) {
 			if (m == ModifierKind.STATIC)

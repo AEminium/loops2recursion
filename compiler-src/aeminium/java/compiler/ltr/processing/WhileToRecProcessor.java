@@ -8,6 +8,7 @@ import java.util.Set;
 import spoon.reflect.code.CtBlock;
 import spoon.reflect.code.CtIf;
 import spoon.reflect.code.CtInvocation;
+import spoon.reflect.code.CtStatement;
 import spoon.reflect.code.CtWhile;
 import spoon.reflect.declaration.CtClass;
 import spoon.reflect.declaration.CtMethod;
@@ -18,10 +19,13 @@ import spoon.template.Substitution;
 import spoon.template.Template;
 import aeminium.java.compiler.ltr.processing.utils.Counter;
 import aeminium.java.compiler.ltr.processing.utils.VariablesUsedVisitor;
+import aeminium.java.compiler.ltr.processing.utils.methodfixer.ThrownTypesMethodFixer;
 import aeminium.java.compiler.ltr.template.WhileToRecTemplate;
 
 public class WhileToRecProcessor extends AbstractLoopToRecProcessor<CtWhile>{
     
+	boolean isStatic;
+
 	@Override
 	public void process(CtWhile target) {
 		int id = Counter.getId();
@@ -56,7 +60,7 @@ public class WhileToRecProcessor extends AbstractLoopToRecProcessor<CtWhile>{
 		met.setParameters(parList);
 		
 		// Make static work
-        boolean isStatic = checkStatic(target.getParent(CtMethod.class));
+        isStatic = checkStatic(target.getParent(CtMethod.class));
         if (isStatic) isStatic = makeStatic(met);
 		
         // Add cond to if
@@ -64,15 +68,27 @@ public class WhileToRecProcessor extends AbstractLoopToRecProcessor<CtWhile>{
 		iff.setCondition(target.getLoopingExpression());
         
 		// Add body to if.
-		CtBlock<?> body = (CtBlock<?>) target.getBody();
-		body.getStatements().add(createMethodInvocation(outterClass, isStatic, met.getReference(), orderedVariables, variableTypes));
-		iff.setThenStatement(body);
-		
+		CtInvocation<?> inv = createMethodInvocation(outterClass, isStatic, met.getReference(), orderedVariables, variableTypes);
+		CtStatement body = (CtStatement) target.getBody();
+		CtBlock<?> block;
+		List<CtStatement> stms;
+		if (body instanceof CtBlock) {
+			block = (CtBlock<?>) body;
+			stms = ((CtBlock<?>) body).getStatements();
+		} else {
+			block = getFactory().Core().createBlock();
+			stms = new ArrayList<CtStatement>();
+			stms.add(body);
+		}
+		stms.add(inv);
+		block.setStatements(stms);
+		iff.setThenStatement(block);
 		CtInvocation<?> repl = createMethodInvocation(outterClass, isStatic, met.getReference(), orderedVariables, variableTypes);
 		target.replace(repl);
 		
 		met.setDocComment("Generated from the While cycle in line " + target.getPosition().getLine() + " of the original file.");
 		
+		new ThrownTypesMethodFixer(met).fix();
 		checkConsistency(target);
 	}
 	
